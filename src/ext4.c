@@ -474,16 +474,67 @@ Finish:
 
 static struct ext4_mountpoint *ext4_get_mount(const char *path)
 {
+	struct ext4_mountpoint *best = NULL;
+	size_t best_len = 0;
+	size_t path_len = strlen(path);
+	
+	/* Normalize path: drop trailing slash except for root "/" */
+	size_t path_norm_len = path_len;
+	if (path_norm_len > 1 && path[path_norm_len - 1] == '/')
+		--path_norm_len;
+
 	for (size_t i = 0; i < CONFIG_EXT4_MOUNTPOINTS_COUNT; ++i) {
 
 		if (!s_mp[i].mounted)
 			continue;
 
-		if (!strncmp(s_mp[i].name, path, strlen(s_mp[i].name)))
-			return &s_mp[i];
+		const char *name = s_mp[i].name;
+		size_t name_len = strlen(name);
+		if (name_len == 0)
+			continue;
+		
+		/* Normalize mount name: drop trailing slash except for root "/" */
+		size_t name_norm_len = name_len;
+		if (name_norm_len > 1 && name[name_norm_len - 1] == '/')
+			--name_norm_len;
+
+		if (name_norm_len > path_norm_len)
+			continue;
+
+		if (!strncmp(name, path, name_norm_len)) {
+			int boundary_ok = 0;
+			if (name_norm_len == 1 && name[0] == '/') {
+				boundary_ok = 1; /* root matches anything */
+			} else {
+				char next = path[name_norm_len];
+				if (next == '\0' || next == '/')
+					boundary_ok = 1;
+			}
+			if (boundary_ok && name_norm_len > best_len) {
+				best = &s_mp[i];
+				best_len = name_norm_len;
+			}
+		}
 	}
 
-	return NULL;
+	return best;
+}
+
+bool ext4_is_mount_point(const char *path)
+{
+	struct ext4_mountpoint *mp = ext4_get_mount(path);
+	if (!mp)
+		return false;
+	size_t name_len = strlen(mp->name);
+	size_t path_len = strlen(path);
+
+	// Accept if path matches mount point exactly, or with trailing slash
+	if (name_len == path_len && strncmp(mp->name, path, name_len) == 0)
+		return true;
+	if (name_len + 1 == path_len &&
+	    strncmp(mp->name, path, name_len) == 0 && path[name_len] == '/')
+		return true;
+	return false;
 }
 
 __unused

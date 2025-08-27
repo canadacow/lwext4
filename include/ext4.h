@@ -215,6 +215,13 @@ int ext4_mount_point_stats(const char *mount_point,
 int ext4_mount_setup_locks(const char *mount_point,
 			   const struct ext4_lock *locks);
 
+/**@brief   Check if path is a mount point.
+ *
+ * @param   path Path to check.
+ *
+ * @return True if path is a mount point, false otherwise. */
+bool ext4_is_mount_point(const char *path);
+
 /**@brief   Acquire the filesystem superblock pointer of a mp.
  *
  * @param   mount_point Mount point.
